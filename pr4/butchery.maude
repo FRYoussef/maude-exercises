@@ -1,0 +1,341 @@
+***(
+    Author: Youssef El Faqir El Rhazoui
+    Date: 2/11/2019
+    )
+
+fmod ORDER is
+    pr NAT .
+    sorts Order OrderList .
+    subsort Order < OrderList .
+
+    *** (butcher-id | beef, pork)
+    op ord(_|_,_) : Nat Nat Nat -> Order [ctor] .
+    op empty : -> OrderList [ctor] .
+    op __ : OrderList OrderList -> OrderList [ctor assoc id: empty] .
+
+endfm
+
+fmod VAN is
+    pr NAT .
+    sorts VanStates Van .
+
+    ops waiting delivery turn : -> VanStates [ctor] .
+    op empty : -> Van [ctor] .
+    op initialVan : -> Van .
+    eq initialVan = van[0, 0 | 0, 0, waiting] .
+
+    *** [origin-farm-id, dest-butchery-id | beef, pork, van-state]
+    op van[_,_|_,_,_] : Nat Nat Nat Nat VanStates -> Van [ctor] .
+
+endfm
+
+fmod FARM is
+    pr NAT .
+    pr ORDER .
+    pr VAN .
+    sort Farm .
+
+    *** farm(farm-id | cows, pigs | Van, list-of-orders)
+    op farm(_|_,_|_,_) : Nat Nat Nat Van OrderList -> Farm [ctor] .
+
+endfm
+
+fmod CUSTOMER is
+    pr NAT .
+    sorts Customer CustomerQueue .
+    subsort Customer < CustomerQueue .
+
+    *** (beef, pork)
+    op cus(_,_) : Nat Nat -> Customer [ctor] .
+    op empty : -> CustomerQueue [ctor] .
+    op __ : CustomerQueue CustomerQueue -> CustomerQueue [ctor assoc id: empty] .    
+
+endfm
+
+fmod BUTCHERY is
+    pr NAT .
+    pr CUSTOMER .
+    pr VAN .
+    sorts ButcheryStates Notebook Butchery .
+    subsort Nat < Notebook .
+
+    op empty : -> Notebook [ctor] .
+    op __ : Notebook Notebook -> Notebook [ctor assoc comm id: empty] .
+    ops open closed : -> ButcheryStates [ctor] .
+
+    *** <butchery-id | beef, pork, state | van, queue-of-customers, farms-notebook>
+    ***op empty : -> Butchery .
+    op butchery(_|_,_,_|_,_,_) : Nat Nat Nat ButcheryStates Van CustomerQueue Notebook -> Butchery [ctor] .
+
+endfm
+
+mod SYS is
+    pr ORDER .
+    pr BUTCHERY .
+    pr FARM .
+    sort Sys .
+    subsort Farm < Sys .
+    subsort Butchery < Sys .
+
+    vars FarmId ButchId FarmId2 ButchId2 Cows Pigs Beef1 Pork1 Beef2 Pork2 NVans : Nat .
+    var VanState : VanStates .
+    var Orders : OrderList .
+    var ButchState : ButcheryStates .
+    var Customers : CustomerQueue .
+    var Notebook : Notebook .
+    var Van : Van .
+    var S : Sys .
+
+    op __ : Sys Sys -> Sys [ctor assoc comm] .
+
+    op numVans(_) : Sys -> Nat .
+    eq numVans(butchery(ButchId | Beef1, Pork1, ButchState | van[FarmId, ButchId2 | Beef2, Pork2, VanState], Customers, Notebook) S) = 1 + numVans(S) .
+    eq numVans(farm(FarmId | Cows, Pigs | van[FarmId2, ButchId | Beef2, Pork2, VanState], Orders) S) = 1 + numVans(S) .
+    eq numVans(S) = 0 [owise] .
+
+    op initial : -> Sys .
+    eq initial = farm(1 | 5, 3 | initialVan, ord(1 | 4,3) ord(2 | 4,3))
+                 farm(2 | 2, 1 | initialVan, ord(2 | 1, 0) ord(1 | 1, 0))
+                 butchery(1 | 0, 0, open | empty, cus(1, 1) cus(1, 0), 1 2)
+                 butchery(2 | 0, 0, open | empty, cus(2, 0), 1 2) . 
+
+    op initial2 : -> Sys .
+    eq initial2 = farm(1 | 2, 1 | initialVan, ord(1 | 1, 0))
+                  butchery(1 | 0, 0, open | empty, cus(1, 0) cus(1, 0), 1) .
+
+
+    *** RULES
+
+    *** The farm's van will charge meet just in the case the farm has enough cows and porks
+    crl [chargeVan] : farm(FarmId | Cows, Pigs | van[0, 0 | 0, 0, waiting], ord(ButchId | Beef1, Pork1) Orders) 
+     => farm(FarmId | sd(Cows, Beef1), sd(Pigs, Pork1) | van[FarmId, ButchId | Beef1, Pork1, delivery], Orders)
+     if Cows >= Beef1 and Pigs >= Pork1 .
+
+    *** The van goes from farm to butchery
+    rl [deliveryVan] : farm(FarmId | Cows, Pigs | van[FarmId, ButchId | Beef1, Pork1, delivery], Orders) butchery(ButchId | Beef2, Pork2, ButchState | empty, Customers, Notebook)
+     => farm(FarmId | Cows, Pigs | empty, Orders) butchery(ButchId | Beef2, Pork2, ButchState | van[FarmId, ButchId | Beef1, Pork1, delivery], Customers, Notebook) .
+
+    rl [addProdButch] : butchery(ButchId | Beef2, Pork2, ButchState | van[FarmId, ButchId | Beef1, Pork1, delivery], Customers, FarmId Notebook)
+     => butchery(ButchId | Beef2 + Beef1, Pork2 + Pork1, ButchState | van[FarmId, ButchId | 0, 0, turn], Customers, Notebook) .
+
+    rl [vanBackFarm] : butchery(ButchId | Beef2, Pork2, ButchState | van[FarmId, ButchId | 0, 0, turn], Customers, Notebook) farm(FarmId | Cows, Pigs | empty, Orders)
+     => butchery(ButchId | Beef2, Pork2, ButchState | empty, Customers, Notebook) farm(FarmId | Cows, Pigs | van[0, 0 | 0, 0, waiting], Orders) .
+
+    crl [butchBuy] : butchery(ButchId | Beef1, Pork1, open | Van, cus(Beef2, Pork2) Customers, Notebook)
+     => butchery(ButchId | sd(Beef2, Beef1), sd(Pork2, Pork1), open | Van, Customers, Notebook)
+     if Beef1 >= Beef2 and Pork1 >= Pork2 .
+
+    rl [butchClose] : butchery(ButchId | Beef1, Pork1, open | Van, empty, Notebook)
+     => butchery(ButchId | Beef1, Pork1, closed | Van, empty, Notebook) .
+
+
+    *** ATOMIC PROPERTIES
+
+    *** search initial =>* S:Sys s.t. hasStock(1, 5, 3, S) .
+    op hasStock : Nat Nat Nat Sys -> Bool .
+    eq hasStock(ButchId, Beef1, Pork1, butchery(ButchId | Beef2, Pork2, ButchState | Van, Customers, Notebook) S) 
+     = (Beef2 >= Beef1) and (Pork2 >= Pork1) .
+
+    *** search [1] initial =>* S:Sys s.t. hasOrder(2, 1, S) .
+    op hasOrder : Nat Nat Sys -> Bool .
+    eq hasOrder(ButchId, FarmId, farm(FarmId | Cows, Pigs | Van, ord(ButchId | Beef1, Pork1) Orders) S) = true .
+    eq hasOrder(ButchId, FarmId, S) = false [owise] .
+
+    *** search [1] initial =>* S:Sys s.t. isWaitingOrder(2, 1, S) .
+    op isWaitingOrder : Nat Nat Sys -> Bool .
+    eq isWaitingOrder(ButchId, FarmId, butchery(ButchId | Beef1, Pork1, ButchState | Van, Customers, FarmId Notebook) S) = true .
+    eq isWaitingOrder(ButchId, FarmId, S) = false [owise] .
+
+    *** search [1] initial =>* S:Sys s.t. not isOpen(1, S) .
+    op isOpen : Nat Sys -> Bool .
+    eq isOpen(ButchId, butchery(ButchId | Beef1, Pork1, open | Van, Customers, Notebook) S) = true .
+    eq isOpen(ButchId, S) = false [owise] .
+
+    *** search [1] initial =>* S:Sys s.t. isClosed(1, S) .
+    op isClosed : Nat Sys -> Bool .
+    eq isClosed(ButchId, S) = not isOpen(ButchId, S) .
+
+    *** search [1] initial =>* S:Sys s.t. not hasCustomer(1, S) .
+    op hasCustomer : Nat Sys -> Bool .
+    eq hasCustomer(ButchId, butchery(ButchId | Beef1, Pork1, ButchState | Van, empty, Notebook) S) = false .
+    eq hasCustomer(ButchId, S) = true [owise] .
+
+    *** search [1] initial =>* S:Sys s.t. hasNVans(2, S) .
+    op hasNVans : Nat Sys -> Bool .
+    eq hasNVans(NVans, S) = NVans == numVans(S) .
+
+endm
+
+load model-checker.maude
+
+mod PROPS is
+    pr SATISFACTION .
+    pr SYS .
+    pr NAT .
+    subsort Sys < State .
+
+    vars ButchId FarmId Beef1 Pork1 NVans : Nat .
+    var S : Sys .
+
+    op hasStock : Nat Nat Nat -> Prop [ctor] .
+    eq S |= hasStock(ButchId, Beef1, Pork1) = hasStock(ButchId, Beef1, Pork1, S) .
+
+    op hasOrder : Nat Nat -> Prop [ctor] .
+    eq S |= hasOrder(ButchId, FarmId) = hasOrder(ButchId, FarmId, S) .
+
+    op isWaitingOrder : Nat Nat -> Prop [ctor] .
+    eq S |= isWaitingOrder(ButchId, FarmId) = isWaitingOrder(ButchId, FarmId, S) .
+
+    op isOpen : Nat -> Prop [ctor] .
+    eq S |= isOpen(ButchId) = isOpen(ButchId, S) .
+
+    op isClosed : Nat -> Prop [ctor] .
+    eq S |= isClosed(ButchId) = isClosed(ButchId, S) .
+
+    op hasCustomer : Nat -> Prop [ctor] .
+    eq S |= hasCustomer(ButchId) = hasCustomer(ButchId, S) .
+
+    op hasNVans : Nat -> Prop [ctor] .
+    eq S |= hasNVans(NVans) = hasNVans(NVans, S) .
+endm
+
+mod CHECK is
+    pr PROPS .
+    pr MODEL-CHECKER .
+    pr LTL-SIMPLIFIER .
+
+    *** Ej 15. a)
+    *** No es cierto, porque si no hay stock en la tienda, no hay más pedídos y 
+    *** aún hay clientes entonces la tienda no cierra.
+    *** red modelCheck(initial, [] (<> isClosed(2))) .
+
+    --- counterexample({farm(1 | 5,3 | van[0,0 | 0,0,waiting],
+    --- ord(1 | 4,3) ord(2 | 4,3)) farm(2 | 2,1 | van[0,0 | 0,0,waiting],ord(2 | 1,
+    --- 0) ord(1 | 1,0)) butchery(1 | 0,0,open | empty,cus(1,1) cus(1,0),1 2)
+    --- butchery(2 | 0,0,open | empty,cus(2,0),1 2),'chargeVan} {farm(1 | 1,0 |
+    --- van[1,1 | 4,3,delivery],ord(2 | 4,3)) farm(2 | 2,1 | van[0,0 | 0,0,
+    --- waiting],ord(2 | 1,0) ord(1 | 1,0)) butchery(1 | 0,0,open | empty,cus(1,1)
+    --- cus(1,0),1 2) butchery(2 | 0,0,open | empty,cus(2,0),1 2),'deliveryVan} {
+    --- farm(1 | 1,0 | empty,ord(2 | 4,3)) farm(2 | 2,1 | van[0,0 | 0,0,waiting],
+    --- ord(2 | 1,0) ord(1 | 1,0)) butchery(1 | 0,0,open | van[1,1 | 4,3,delivery],
+    --- cus(1,1) cus(1,0),1 2) butchery(2 | 0,0,open | empty,cus(2,0),1 2),
+    --- 'chargeVan} {farm(1 | 1,0 | empty,ord(2 | 4,3)) farm(2 | 1,1 | van[2,2 | 1,
+    --- 0,delivery],ord(1 | 1,0)) butchery(1 | 0,0,open | van[1,1 | 4,3,delivery],
+    --- cus(1,1) cus(1,0),1 2) butchery(2 | 0,0,open | empty,cus(2,0),1 2),
+    --- 'deliveryVan} {farm(1 | 1,0 | empty,ord(2 | 4,3)) farm(2 | 1,1 | empty,ord(
+    --- 1 | 1,0)) butchery(1 | 0,0,open | van[1,1 | 4,3,delivery],cus(1,1) cus(1,
+    --- 0),1 2) butchery(2 | 0,0,open | van[2,2 | 1,0,delivery],cus(2,0),1 2),
+    --- 'addProdButch} {farm(1 | 1,0 | empty,ord(2 | 4,3)) farm(2 | 1,1 | empty,
+    --- ord(1 | 1,0)) butchery(1 | 4,3,open | van[1,1 | 0,0,turn],cus(1,1) cus(1,
+    --- 0),2) butchery(2 | 0,0,open | van[2,2 | 1,0,delivery],cus(2,0),1 2),
+    --- 'vanBackFarm} {farm(1 | 1,0 | van[0,0 | 0,0,waiting],ord(2 | 4,3)) farm(2 |
+    --- 1,1 | empty,ord(1 | 1,0)) butchery(1 | 4,3,open | empty,cus(1,1) cus(1,0),
+    --- 2) butchery(2 | 0,0,open | van[2,2 | 1,0,delivery],cus(2,0),1 2),'butchBuy}
+    --- {farm(1 | 1,0 | van[0,0 | 0,0,waiting],ord(2 | 4,3)) farm(2 | 1,1 | empty,
+    --- ord(1 | 1,0)) butchery(1 | 3,2,open | empty,cus(1,0),2) butchery(2 | 0,0,
+    --- open | van[2,2 | 1,0,delivery],cus(2,0),1 2),'butchBuy} {farm(1 | 1,0 |
+    --- van[0,0 | 0,0,waiting],ord(2 | 4,3)) farm(2 | 1,1 | empty,ord(1 | 1,0))
+    --- butchery(1 | 2,2,open | empty,empty,2) butchery(2 | 0,0,open | van[2,2 | 1,
+    --- 0,delivery],cus(2,0),1 2),'butchClose} {farm(1 | 1,0 | van[0,0 | 0,0,
+    --- waiting],ord(2 | 4,3)) farm(2 | 1,1 | empty,ord(1 | 1,0)) butchery(1 | 2,2,
+    --- closed | empty,empty,2) butchery(2 | 0,0,open | van[2,2 | 1,0,delivery],
+    --- cus(2,0),1 2),'addProdButch} {farm(1 | 1,0 | van[0,0 | 0,0,waiting],ord(2 |
+    --- 4,3)) farm(2 | 1,1 | empty,ord(1 | 1,0)) butchery(1 | 2,2,closed | empty,
+    --- empty,2) butchery(2 | 1,0,open | van[2,2 | 0,0,turn],cus(2,0),1),
+    --- 'vanBackFarm} {farm(1 | 1,0 | van[0,0 | 0,0,waiting],ord(2 | 4,3)) farm(2 |
+    --- 1,1 | van[0,0 | 0,0,waiting],ord(1 | 1,0)) butchery(1 | 2,2,closed | empty,
+    --- empty,2) butchery(2 | 1,0,open | empty,cus(2,0),1),'chargeVan} {farm(1 | 1,
+    --- 0 | van[0,0 | 0,0,waiting],ord(2 | 4,3)) farm(2 | 0,1 | van[2,1 | 1,0,
+    --- delivery],empty) butchery(1 | 2,2,closed | empty,empty,2) butchery(2 | 1,0,
+    --- open | empty,cus(2,0),1),'deliveryVan} {farm(1 | 1,0 | van[0,0 | 0,0,
+    --- waiting],ord(2 | 4,3)) farm(2 | 0,1 | empty,empty) butchery(1 | 2,2,closed
+    --- | van[2,1 | 1,0,delivery],empty,2) butchery(2 | 1,0,open | empty,cus(2,0),
+    --- 1),'addProdButch} {farm(1 | 1,0 | van[0,0 | 0,0,waiting],ord(2 | 4,3))
+    --- farm(2 | 0,1 | empty,empty) butchery(1 | 3,2,closed | van[2,1 | 0,0,turn],
+    --- empty,empty) butchery(2 | 1,0,open | empty,cus(2,0),1),'vanBackFarm}, {
+    --- farm(1 | 1,0 | van[0,0 | 0,0,waiting],ord(2 | 4,3)) farm(2 | 0,1 | van[0,0
+    --- | 0,0,waiting],empty) butchery(1 | 3,2,closed | empty,empty,empty)
+    --- butchery(2 | 1,0,open | empty,cus(2,0),1),deadlock}) 
+
+
+    *** Ej 15. b)
+    *** No es cierto, es condición necesaria pero no suficiente, puede tener stock para 
+    *** el primero pero no para el segundo, con lo cual no cerrará
+    *** red modelCheck(initial2, [] (hasCustomer(1) /\ hasStock(1, 1, 0) -> <> isClosed(1))) .
+
+    --- counterexample({farm(1 | 2,1 | van[0,0 | 0,0,waiting],
+    --- ord(1 | 1,0)) butchery(1 | 0,0,open | empty,cus(1,0) cus(1,0),1),
+    --- 'chargeVan} {farm(1 | 1,1 | van[1,1 | 1,0,delivery],empty) butchery(1 | 0,
+    --- 0,open | empty,cus(1,0) cus(1,0),1),'deliveryVan} {farm(1 | 1,1 | empty,
+    --- empty) butchery(1 | 0,0,open | van[1,1 | 1,0,delivery],cus(1,0) cus(1,0),
+    --- 1),'addProdButch} {farm(1 | 1,1 | empty,empty) butchery(1 | 1,0,open | van[
+    --- 1,1 | 0,0,turn],cus(1,0) cus(1,0),empty),'vanBackFarm} {farm(1 | 1,1 | van[
+    --- 0,0 | 0,0,waiting],empty) butchery(1 | 1,0,open | empty,cus(1,0) cus(1,0),
+    --- empty),'butchBuy}, {farm(1 | 1,1 | van[0,0 | 0,0,waiting],empty) butchery(1
+    --- | 0,0,open | empty,cus(1,0),empty),deadlock})
+
+
+    *** Ej 15. c)
+    *** Es cierta, ya que son valores excluyentes y la variable es unievaluada
+    *** red modelCheck(initial, [] ~(isOpen(2) /\ isClosed(2))) .
+
+
+    *** Ej 15. d)
+    *** No es cierto, porque si la granja que ofrece el pedido no puede abastecer, 
+    *** entonces la carnicería esperará indefinidamente el pedido
+    *** red modelCheck(initial, [] (isWaitingOrder(2, 1) -> <> ~ isWaitingOrder(2, 1))) .
+
+    --- counterexample({farm(1 | 5,3 | van[0,0 | 0,0,waiting],
+    --- ord(1 | 4,3) ord(2 | 4,3)) farm(2 | 2,1 | van[0,0 | 0,0,waiting],ord(2 | 1,
+    --- 0) ord(1 | 1,0)) butchery(1 | 0,0,open | empty,cus(1,1) cus(1,0),1 2)
+    --- butchery(2 | 0,0,open | empty,cus(2,0),1 2),'chargeVan} {farm(1 | 1,0 |
+    --- van[1,1 | 4,3,delivery],ord(2 | 4,3)) farm(2 | 2,1 | van[0,0 | 0,0,
+    --- waiting],ord(2 | 1,0) ord(1 | 1,0)) butchery(1 | 0,0,open | empty,cus(1,1)
+    --- cus(1,0),1 2) butchery(2 | 0,0,open | empty,cus(2,0),1 2),'deliveryVan} {
+    --- farm(1 | 1,0 | empty,ord(2 | 4,3)) farm(2 | 2,1 | van[0,0 | 0,0,waiting],
+    --- ord(2 | 1,0) ord(1 | 1,0)) butchery(1 | 0,0,open | van[1,1 | 4,3,delivery],
+    --- cus(1,1) cus(1,0),1 2) butchery(2 | 0,0,open | empty,cus(2,0),1 2),
+    --- 'chargeVan} {farm(1 | 1,0 | empty,ord(2 | 4,3)) farm(2 | 1,1 | van[2,2 | 1,
+    --- 0,delivery],ord(1 | 1,0)) butchery(1 | 0,0,open | van[1,1 | 4,3,delivery],
+    --- cus(1,1) cus(1,0),1 2) butchery(2 | 0,0,open | empty,cus(2,0),1 2),
+    --- 'deliveryVan} {farm(1 | 1,0 | empty,ord(2 | 4,3)) farm(2 | 1,1 | empty,ord(
+    --- 1 | 1,0)) butchery(1 | 0,0,open | van[1,1 | 4,3,delivery],cus(1,1) cus(1,
+    --- 0),1 2) butchery(2 | 0,0,open | van[2,2 | 1,0,delivery],cus(2,0),1 2),
+    --- 'addProdButch} {farm(1 | 1,0 | empty,ord(2 | 4,3)) farm(2 | 1,1 | empty,
+    --- ord(1 | 1,0)) butchery(1 | 4,3,open | van[1,1 | 0,0,turn],cus(1,1) cus(1,
+    --- 0),2) butchery(2 | 0,0,open | van[2,2 | 1,0,delivery],cus(2,0),1 2),
+    --- 'vanBackFarm} {farm(1 | 1,0 | van[0,0 | 0,0,waiting],ord(2 | 4,3)) farm(2 |
+    --- 1,1 | empty,ord(1 | 1,0)) butchery(1 | 4,3,open | empty,cus(1,1) cus(1,0),
+    --- 2) butchery(2 | 0,0,open | van[2,2 | 1,0,delivery],cus(2,0),1 2),'butchBuy}
+    --- {farm(1 | 1,0 | van[0,0 | 0,0,waiting],ord(2 | 4,3)) farm(2 | 1,1 | empty,
+    --- ord(1 | 1,0)) butchery(1 | 3,2,open | empty,cus(1,0),2) butchery(2 | 0,0,
+    --- open | van[2,2 | 1,0,delivery],cus(2,0),1 2),'butchBuy} {farm(1 | 1,0 |
+    --- van[0,0 | 0,0,waiting],ord(2 | 4,3)) farm(2 | 1,1 | empty,ord(1 | 1,0))
+    --- butchery(1 | 2,2,open | empty,empty,2) butchery(2 | 0,0,open | van[2,2 | 1,
+    --- 0,delivery],cus(2,0),1 2),'butchClose} {farm(1 | 1,0 | van[0,0 | 0,0,
+    --- waiting],ord(2 | 4,3)) farm(2 | 1,1 | empty,ord(1 | 1,0)) butchery(1 | 2,2,
+    --- closed | empty,empty,2) butchery(2 | 0,0,open | van[2,2 | 1,0,delivery],
+    --- cus(2,0),1 2),'addProdButch} {farm(1 | 1,0 | van[0,0 | 0,0,waiting],ord(2 |
+    --- 4,3)) farm(2 | 1,1 | empty,ord(1 | 1,0)) butchery(1 | 2,2,closed | empty,
+    --- empty,2) butchery(2 | 1,0,open | van[2,2 | 0,0,turn],cus(2,0),1),
+    --- 'vanBackFarm} {farm(1 | 1,0 | van[0,0 | 0,0,waiting],ord(2 | 4,3)) farm(2 |
+    --- 1,1 | van[0,0 | 0,0,waiting],ord(1 | 1,0)) butchery(1 | 2,2,closed | empty,
+    --- empty,2) butchery(2 | 1,0,open | empty,cus(2,0),1),'chargeVan} {farm(1 | 1,
+    --- 0 | van[0,0 | 0,0,waiting],ord(2 | 4,3)) farm(2 | 0,1 | van[2,1 | 1,0,
+    --- delivery],empty) butchery(1 | 2,2,closed | empty,empty,2) butchery(2 | 1,0,
+    --- open | empty,cus(2,0),1),'deliveryVan} {farm(1 | 1,0 | van[0,0 | 0,0,
+    --- waiting],ord(2 | 4,3)) farm(2 | 0,1 | empty,empty) butchery(1 | 2,2,closed
+    --- | van[2,1 | 1,0,delivery],empty,2) butchery(2 | 1,0,open | empty,cus(2,0),
+    --- 1),'addProdButch} {farm(1 | 1,0 | van[0,0 | 0,0,waiting],ord(2 | 4,3))
+    --- farm(2 | 0,1 | empty,empty) butchery(1 | 3,2,closed | van[2,1 | 0,0,turn],
+    --- empty,empty) butchery(2 | 1,0,open | empty,cus(2,0),1),'vanBackFarm}, {
+    --- farm(1 | 1,0 | van[0,0 | 0,0,waiting],ord(2 | 4,3)) farm(2 | 0,1 | van[0,0
+    --- | 0,0,waiting],empty) butchery(1 | 3,2,closed | empty,empty,empty)
+    --- butchery(2 | 1,0,open | empty,cus(2,0),1),deadlock})
+
+
+    *** Ej 15. e)
+    *** Es cierto, puesto que hay dos furgonetas y estas están siempre o en 
+    *** la granja o en la carnicería 
+    *** red modelCheck(initial, [] hasNVans(2)) .
+endm

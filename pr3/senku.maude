@@ -1,0 +1,32 @@
+mod SENKU is
+	sort Senku Ficha .
+	subsort Ficha < Senku .
+	pr NAT .
+	var X Y : Nat .
+	var S : Senku .
+	op (_,_|_) : Nat Nat Bool -> Ficha [ctor] .
+	
+	op __ : Senku Senku -> Senku [ctor assoc comm] .
+	
+	rl[saltoarr] : (X,Y | true)(s(X),Y | true)(s(s(X)),Y | false) => (X,Y | false)(s(X),Y | false)(s(s(X)),Y | true) .
+	rl[saltoab] : (X,Y | false)(s(X),Y | true)(s(s(X)),Y | true) => (X,Y | true)(s(X),Y | false)(s(s(X)),Y | false) .
+	rl[saltoiz] : (X,Y | false)(X,s(Y) | true)(X,s(s(Y)) | true) => (X,Y | true)(X,s(Y) | false)(X,s(s(Y)) | false) .
+	rl[saltoder] : (X,Y | true)(X,s(Y) | true)(X,s(s(Y)) | false) => (X,Y | false)(X,s(Y) | false)(X,s(s(Y)) | true) .
+	rl[saltodarr] : (s(s(X)),Y | true)(s(X),s(Y) | true)(X,s(s(Y)) | false) => (s(s(X)),Y | false)(s(X),s(Y) | false)(X,s(s(Y)) | true) .
+	rl[saltodab] : (s(s(X)),Y | false)(s(X),s(Y) | true)(X,s(s(Y)) | true) => (s(s(X)),Y | true)(s(X),s(Y) | false)(X,s(s(Y)) | false) .
+
+	op cuenta : Senku -> Nat .
+	eq cuenta(S (X,Y | true)) = 1 + cuenta(S) .
+	eq cuenta(S) = 0 [owise] .
+
+
+	op initial : -> Senku .
+	eq initial = (0,0 | true)(0,1 | true)(0,2 | true)(0,3 | true)(0, 4 | true)
+				 (1,0 | true)(1,1 | true)(1,2 | true)(1,3 | true)(2,0 | true)
+				 (2,1 | false)(2,2 | true)(3,0 | true)(3,1 | true)(4,0 | true) .
+
+endm
+***(
+	Para probarlo:
+	search [1] initial =>* s:Senku s.t. cuenta(s:Senku) == 1 .
+)

@@ -1,0 +1,472 @@
+***(
+    Author: Youssef El Faqir El Rhazoui
+    Date: 18/11/2019
+)
+
+fmod TICKET is
+    pr NAT .
+    sorts Ticket Tickets .
+    subsort Ticket < Tickets .
+
+    var Price Incr : Nat .
+    var T : Tickets .
+
+    *** Ticket( Price )
+    op ticket(_) : Nat -> Ticket [ctor] .
+
+    op empty : -> Tickets [ctor] .
+    op __ : Tickets Tickets -> Tickets [ctor assoc comm id: empty ] .
+
+    op incrementPrice(_,_) : Tickets Nat -> Tickets .
+    eq incrementPrice(ticket(Price) T, Incr) = 
+        ticket(Price + Incr) incrementPrice(T, Incr) .
+
+endfm
+
+
+fmod DRINK is
+    pr NAT .
+    sort Drink .
+
+    *** number of alcohol drinks, number of soft drinks
+    op drinks(_,_) : Nat Nat -> Drink [ctor] .
+
+endfm
+
+
+fmod PERSON is
+    pr TICKET .
+    pr DRINK .
+    pr STRING .
+    sorts PState Job Person Crowd .
+    subsort Person < Crowd .
+
+
+    var Age1 Age2 Money1 Money2 : Nat .
+    var Dri1 Dri2 : Drink .
+    var N1 N2 : String .
+    var PSt1 PSt2 : PState .
+    var Job1 Job2 : Job .
+    var Tickets1 Tickets2 : Tickets .
+    var P1 P2 : Person .
+    var C : Crowd .
+
+    ops working relax tiredHappy drunk satisfied humiliated expeled : -> PState [ctor] .
+    ops ticketSeller doorkeeper undefined : -> Job [ctor] .
+
+    *** Person( Name, Age, PState, Job, Money | Drinks, Tickets )
+    op person(_,_,_,_,_|_,_) : String Nat PState Job Nat Drink Tickets -> Person [ctor] .
+
+    op empty : -> Crowd [ctor] .
+    op __ : Crowd Crowd -> Crowd [ctor assoc comm id: empty ] .
+
+    *** it's used to know if a person has more money than another
+    op gt : Person Person -> Bool .
+    ceq gt(person(N1, Age1, PSt1, Job1, Money1 | Dri1, Tickets1), 
+     person(N2, Age2, PSt2, Job2, Money2 | Dri2, Tickets2)) 
+     = true
+     if Money1 > Money2 .
+    eq gt(P1, P2) = false [owise] .
+
+    op maxM : Crowd ~> Person .
+    eq maxM(P1 C) = maxM(P1, C) .
+
+    op maxM(_,_) : Person Crowd -> Person .
+    eq maxM(P1, P2 C) = if gt(P1, P2)
+                        then maxM(P1, C)
+                        else maxM(P2, C) 
+                        fi .
+    eq maxM(P1, C) = P1 [owise] .
+
+    op numPeople : Crowd -> Nat .
+    eq numPeople(P1 C) = 1 + numPeople(C) .
+    eq numPeople(C) = 0 [owise] .
+
+endfm
+
+fmod HOME is
+    pr PERSON .
+    sort Home .
+
+    var Queue : Crowd .
+
+    op home : Crowd -> Home [ctor] .
+
+endfm
+
+fmod PLAZAMAYOR is
+    pr PERSON .
+    sort PlazaMayor .
+
+    *** Billy and a crowd of people
+    op plazaMayor(_,_) : Person Crowd -> PlazaMayor [ctor] .
+
+endfm
+
+fmod PARTY is
+    pr PERSON .
+    sort Party .
+
+    *** Bokencio, people waiting for the party, people in the party,
+    *** max people in the party
+    op party(_,_,_,_) : Person Crowd Crowd Nat -> Party [ctor] .
+
+endfm
+
+fmod ARCADE is
+    pr PERSON .
+    sort Arcade .
+
+    *** People in the arcade 
+    op arcade : Crowd -> Arcade [ctor] .
+endfm
+
+mod SYS is
+    pr HOME .
+    pr ARCADE .
+    pr PLAZAMAYOR .
+    pr PARTY .
+    sort Sys .
+    subsort Home Arcade PlazaMayor Party < Sys .
+
+    var Age1 Money1 Price Age2 Money2 MaxP Alcohol SoftDrink : Nat .
+    var Drinks1 Drinks2 : Drink .
+    var N1 N2 : String .
+    var C1 C2 C3 C4 : Crowd .
+    var Tickets1 Tickets2 : Tickets .
+    var PSt1 PSt2 : PState .
+    var P1 P2 P3 : Person .
+
+    op __ : Sys Sys -> Sys [ctor assoc comm] .
+
+
+    *** a person goes from home to Plaza Mayor
+    rl [homeToPlazaMayor] : 
+        home(person(N2, Age2, relax, undefined, Money2 | Drinks2, Tickets2) C1) 
+        plazaMayor(P1, C2) 
+
+     => home(C1) 
+        plazaMayor(P1, person(N2, Age2, relax, undefined, Money2 | Drinks2,
+         Tickets2) C2) .
+
+
+    *** a person goes from home to the party
+    rl [homeToParty] : 
+        home(person(N2, Age2, relax, undefined, Money2 | Drinks2, Tickets2) C1) 
+        party(P1, C3, C2, MaxP)
+        
+     => home(C1) 
+        party(P1, person(N2, Age2, relax, undefined, Money2 | Drinks2, Tickets2)
+         C3, C2, MaxP) .
+
+
+    *** a person goes from home to arcade
+    rl [homeToArcade] : 
+        home(person(N2, Age2, relax, undefined, Money2 | Drinks2, Tickets2) C1) 
+        arcade(C2) 
+
+     => home(C1) 
+        arcade(person(N2, Age2, relax, undefined, Money2 | Drinks2, Tickets2)
+         C2) .
+
+
+    *** a person goes from Plaza Mayor to party
+    crl [plazaMayorToParty] : 
+        plazaMayor(P1, person(N2, Age2, PSt2, undefined, Money2 | Drinks2, 
+         Tickets2) C1) 
+        party(P2, C3, C2, MaxP)
+
+     => plazaMayor(P1, C1) 
+        party(P2, person(N2, Age2, PSt2, undefined, Money2 | Drinks2, 
+         Tickets2) C3, C2, MaxP) 
+         
+     if not (PSt2 == expeled) .
+
+
+    *** a person goes from Plaza Mayor to arcade
+    rl [plazaMayorToArcade] : 
+        plazaMayor(P1, person(N2, Age2, PSt2, undefined, Money2 | Drinks2,
+         Tickets2) C1) 
+        arcade(C2)
+
+     => plazaMayor(P1, C1) 
+        arcade(person(N2, Age2, PSt2, undefined, Money2 | Drinks2,
+         Tickets2) C2) .
+
+
+    *** a person goes from arcade to home
+    crl [arcadeToHome] : 
+        arcade(person(N2, Age2, PSt2, undefined, Money2 | Drinks2, Tickets2) C1)
+        home(C2)
+
+     => arcade(C1) 
+        home(person(N2, Age2, PSt2, undefined, Money2 | Drinks2, Tickets2) C2) 
+
+     if PSt2 == satisfied or PSt2 == humiliated .
+
+
+    *** This rule takes two persons in order to play. The first one is always the winner
+    rl [play] :
+        arcade(
+            person(N1, Age1, PSt1, undefined, Money1 | Drinks1, Tickets1)
+            person(N2, Age2, PSt2, undefined, Money2 | Drinks2, Tickets2) C1)
+    
+     => arcade(
+            person(N1, Age1, satisfied, undefined, Money1 | Drinks1, Tickets1)
+            person(N2, Age2, humiliated, undefined, Money2 | Drinks2, Tickets2) C1) .
+
+
+    *** When billy sells a ticket, the remaining will increase its value in 5 currencies 
+    crl [sellTicket] : 
+        plazaMayor(person("Billy", Age1, working, ticketSeller, Money1 | 
+         Drinks1, ticket(Price) Tickets1), 
+         person(N2, Age2, PSt2, undefined, Money2 | Drinks2, empty) C1)
+
+     => plazaMayor(
+         person("Billy", Age1, working, ticketSeller, Money1 + Price | Drinks1, 
+         incrementPrice(Tickets1, 5)), 
+         person(N2, Age2, PSt2, undefined, sd(Money2, Price) | Drinks2, 
+         ticket(Price) ) C1)
+
+     if Money2 >= Price .
+
+
+    *** A person enters into the party
+    crl [enterTheParty] : 
+        party(P2, C1, C2, MaxP)
+
+     => party(P2, C3, P1 C2, MaxP) 
+
+     if P1 := maxM(C1) /\
+        P1 C3 := C1 /\
+        person(N1, Age1, PSt1, undefined, Money1 | Drinks1, ticket(Price)) := P1 /\
+        Age1 >= 18 /\
+        numPeople(C2) < MaxP .
+
+
+    *** A person can't enter the party, so he goes back to Plaza Mayor
+    crl [cantEnterTheParty] : 
+        party(P1, person(N1, Age1, PSt1, undefined, Money1 | Drinks1, Tickets1) 
+         C1, C2, MaxP)
+        plazaMayor(P2, C3)
+
+     => party(P1, C1, C2, MaxP) 
+        plazaMayor(P2, person(N1, Age1, expeled, undefined, Money1 | Drinks1, Tickets1) C3)
+
+     if Age1 < 18 or numPeople(C2) >= MaxP or Tickets1 == empty .
+
+
+    *** People can buy an alcohol drink, which cost is 2 currencies
+    crl [personBuysAlcohol] : 
+        party(P1, C1, person(N1, Age1, PSt1, undefined, Money1 |
+         drinks(Alcohol, SoftDrink), Tickets1) C2, MaxP)
+
+     => party(P1, C1, 
+         person(N1, Age1, PSt1, undefined, sd(Money1, 2) | drinks(Alcohol + 1, 
+         SoftDrink), Tickets1) C2, MaxP)
+
+     if Money1 >= 2 .
+
+
+    *** People can buy a soft drink, which cost is 1 currency
+    crl [personBuysSoftDrink] : 
+        party(P1, C1, person(N1, Age1, PSt1, undefined, Money1 |
+         drinks(Alcohol, SoftDrink), Tickets1) C2, MaxP)
+
+     => party(P1, C1, 
+         person(N1, Age1, PSt1, undefined, sd(Money1, 1) | drinks(Alcohol, 
+         SoftDrink + 1), Tickets1) C2, MaxP)
+
+     if Money1 >= 1 .
+
+
+    *** Bokencio buys a soft drink, which cost is 1 currency
+    crl [bokencioBuysSoftDrink] : 
+        party(person("Bokencio", Age1, working, doorkeeper, Money1 | 
+         drinks(Alcohol, SoftDrink), Tickets1), C1, C2, MaxP)
+
+     => party(person("Bokencio", Age1, working, doorkeeper, sd(Money1,1) |
+         drinks(Alcohol, SoftDrink + 1), Tickets1), C1, C2, MaxP)
+
+     if Money1 >= 1 .
+
+
+    *** A person would be drunk if he has had 4 or more alcoholic drinks
+    crl [personBecomesDrunk] : 
+        party(P1, C1, person(N1, Age1, PSt1, undefined, Money1 |
+         drinks(Alcohol, SoftDrink), Tickets1) C2, MaxP)
+
+     => party(P1, C1, 
+         person(N1, Age1, drunk, undefined, Money1 | 
+          drinks(Alcohol, SoftDrink), Tickets1) C2, MaxP)
+
+     if Alcohol >= 4 .
+
+
+    *** Bokencio expels people who're drunk
+    rl [bokencioExpelsDrunks] :
+        party(P1, C1, person(N1, Age1, drunk, undefined, Money1 | Drinks1,
+         Tickets1) C2, MaxP)
+        home(C3)
+
+     => party(P1, C1, C2, MaxP)
+        home(person(N1, Age1, drunk, undefined, Money1 | Drinks1, Tickets1) C3) .
+
+
+    *** A person goes back to home
+    crl [partyToHome] :
+        party(P1, C1, person(N1, Age1, PSt1, undefined, Money1 | 
+         drinks(Alcohol, SoftDrink), Tickets1) C2, MaxP)
+        home(C3)
+
+     => party(P1, C1, C2, MaxP)
+        home(person(N1, Age1, tiredHappy, undefined, Money1 | 
+         drinks(Alcohol, SoftDrink), Tickets1) C3)
+     
+     if Alcohol < 4 .
+
+
+    op initial : -> Sys .
+    eq initial = home( 
+                      person("Felipe", 18, relax, undefined, 10 | drinks(0,0), empty) 
+                      person("Pepe", 22, relax, undefined, 20 | drinks(0,0), empty)
+                      person("Paco", 33, relax, undefined, 50 | drinks(0,0), empty)
+                      person("Marta", 15, relax, undefined, 20 | drinks(0,0), empty))
+                 plazaMayor(
+                     person("Billy", 25, working, ticketSeller, 0 | drinks(0,0), 
+                      ticket(5) ticket(5) ticket(5)), 
+                     empty)
+                 party(
+                      person("Bokencio", 25, working, doorkeeper, 2 | drinks(0,0), empty),
+                      empty,
+                      empty,
+                      4)
+                 arcade(empty) .
+
+endm
+
+load model-checker.maude
+
+mod PROPS is
+    pr SATISFACTION .
+    pr SYS .
+    subsort Sys < State .
+
+    vars MaxP Age1 Money1 Price : Nat .
+    vars Drinks1 : Drink .
+    vars Tickets1 : Tickets .
+    vars PSt1 : PState .
+    vars Job1 : Job . 
+    vars C1 C2 : Crowd .
+    vars P1 : Person .
+    vars Name N1 : String .
+    var S : Sys .
+
+    op arePeopleParty : -> Prop [ctor] .
+    ceq party(P1, C1, C2, MaxP) S |= arePeopleParty 
+     = true
+     if not (C1 == empty and C2 == empty) .
+
+
+    *** A specific person could be at the party, or waiting for the party.
+    op isAtTheParty : String -> Prop [ctor] .
+    eq party(P1, person(Name, Age1, PSt1, Job1, Money1 | Drinks1, Tickets1)
+     C1, C2, MaxP) S
+     |= isAtTheParty (Name) = true .
+
+    eq party(P1, C1, person(Name, Age1, PSt1, Job1, Money1 | Drinks1, Tickets1) 
+     C2, MaxP) S
+     |= isAtTheParty (Name) = true .
+
+
+    *** A specific person is at the arcade    
+    op isAtTheArcade : String -> Prop [ctor] .
+    eq arcade(person(Name, Age1, PSt1, Job1, Money1 | Drinks1, Tickets1) C1) S
+     |= isAtTheArcade (Name) = true .
+
+
+    *** Someone is drunk anywhere
+    op someoneIsDrunk : -> Prop [ctor] .
+    eq arcade(person(N1, Age1, drunk, Job1, Money1 | Drinks1, Tickets1) C1) S
+     |= someoneIsDrunk = true .
+
+    eq home(person(N1, Age1, drunk, Job1, Money1 | Drinks1, Tickets1) C1) S
+     |= someoneIsDrunk = true .
+
+    eq plazaMayor(P1, person(N1, Age1, drunk, Job1, Money1 | Drinks1, Tickets1) C1) S
+     |= someoneIsDrunk = true .
+
+    eq party(P1, person(N1, Age1, drunk, Job1, Money1 | Drinks1, Tickets1)
+     C1, C2, MaxP) S
+     |= someoneIsDrunk = true .
+
+    eq party(P1, C1, person(N1, Age1, drunk, Job1, Money1 | Drinks1, Tickets1) 
+     C2, MaxP) S
+     |= someoneIsDrunk = true .
+
+
+    *** A specific person is drunk (anywhere)
+    op isDrunk : String -> Prop [ctor] .
+    eq arcade(person(Name, Age1, drunk, Job1, Money1 | Drinks1, Tickets1) C1) S
+     |= isDrunk (Name) = true .
+    
+    eq home(person(Name, Age1, drunk, Job1, Money1 | Drinks1, Tickets1) C1) S
+     |= isDrunk (Name) = true .
+
+    eq plazaMayor(P1, person(Name, Age1, drunk, Job1, Money1 | Drinks1, 
+     Tickets1) C1) S
+     |= isDrunk (Name) = true .
+
+    eq party(P1, person(Name, Age1, drunk, Job1, Money1 | Drinks1, Tickets1)
+     C1, C2, MaxP) S
+     |= isDrunk (Name) = true .
+
+    eq party(P1, C1, person(Name, Age1, drunk, Job1, Money1 | Drinks1, Tickets1)
+     C2, MaxP) S
+     |= isDrunk (Name) = true .
+
+
+    *** A specific person has a ticket (anywhere)
+    op hasTicket : String -> Prop [ctor] .
+    eq arcade(person(Name, Age1, PSt1, Job1, Money1 | Drinks1, ticket(Price))
+     C1) S
+     |= hasTicket (Name) = true .
+    
+    eq home(person(Name, Age1, PSt1, Job1, Money1 | Drinks1, ticket(Price))
+     C1) S
+     |= hasTicket (Name) = true .
+
+    eq plazaMayor(P1, person(Name, Age1, PSt1, Job1, Money1 | Drinks1, 
+     ticket(Price)) C1) S
+     |= hasTicket (Name) = true .
+
+    eq party(P1, person(Name, Age1, PSt1, Job1, Money1 | Drinks1, ticket(Price))
+     C1, C2, MaxP) S
+     |= hasTicket (Name) = true .
+
+    eq party(P1, C1, person(Name, Age1, PSt1, Job1, Money1 | Drinks1,
+     ticket(Price)) C2, MaxP) S
+     |= hasTicket (Name) = true .
+
+endm
+
+mod CHECK is
+    pr PROPS .
+    pr MODEL-CHECKER .
+    pr LTL-SIMPLIFIER .
+
+***( Ejercicio 3.1 
+    red modelCheck(initial, <> (~ arePeopleParty -> [] ~ arePeopleParty)) .
+    Devuelve True.
+    )
+
+***( Ejercicio 3.2
+    red modelCheck(initial, <> (isDrunk ("Pepe") -> [] isDrunk ("Pepe"))) .
+    Devuelve True.
+)
+
+***( Ejercicio 3.3
+)
+
+
+endm

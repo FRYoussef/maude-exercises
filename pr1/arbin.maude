@@ -1,0 +1,33 @@
+fmod ARBIN is
+ pr NAT .
+ sort Abb .
+
+ op av : -> Abb [ctor] .
+ op _[_,_]_ : Abb Nat Nat Abb -> Abb [ctor] .
+ vars N N' C V : Nat .
+ vars I D A I' D' : Abb .
+
+ op mezcla : Nat Nat -> Nat .
+ eq mezcla(N, N') = N + N' . 
+
+ op insertar : Nat Nat Abb -> Abb .
+ eq insertar(N, N', av) = av [N, N'] av .
+ ceq insertar(N, N', I [C, V] D) = I [C, V] insertar(N, N', D)
+  if N > C .
+ eq insertar(N, N', I [N, V] D) = I [N, mezcla(V, N')] D .
+ eq insertar(N, N', I [C, V] D) = insertar(N, N', I) [C, V] D [owise].
+
+ op buscar : Nat Abb ~> Nat .
+ eq buscar(N, I [N, V] D) = V .
+ eq buscar(N, I [C, V] D) = if N < C
+                            then
+                             buscar(N, I)
+                            else
+                             buscar(N, D)
+                            fi [owise] .
+
+ ops test1 test2 : -> Abb .
+ eq test1 = av [2, 3] (av [7, 5] av) .
+ eq test2 = (av [3, 9] av) [7, 8] av .
+
+endfm
