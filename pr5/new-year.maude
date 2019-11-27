@@ -20,6 +20,7 @@ fmod TICKET is
     op incrementPrice(_,_) : Tickets Nat -> Tickets .
     eq incrementPrice(ticket(Price) T, Incr) = 
         ticket(Price + Incr) incrementPrice(T, Incr) .
+    eq incrementPrice(empty, Incr) = empty .
 
 endfm
 
@@ -244,6 +245,18 @@ mod SYS is
         Age1 >= 18 /\
         numPeople(C2) < MaxP .
 
+    
+    *** A person is expeled to plaza mayor
+    crl [cantEnterTheParty] : 
+        party(P1, P2 C1, C2, MaxP)
+        plazaMayor(P3, C3)
+
+     => party(P1, C1, C2, MaxP)
+        plazaMayor(P3, P2 C3)
+
+     if person(N1, Age1, PSt1, undefined, Money1 | Drinks1, Tickets1) := P2 /\
+        (Age1 < 18 or numPeople(C2) >= MaxP or Tickets1 == empty) .
+
 
     *** People can buy an alcohol drink, which cost is 2 currencies
     crl [personBuysAlcohol] : 
@@ -442,15 +455,63 @@ mod CHECK is
     pr LTL-SIMPLIFIER .
 
 ***( Ejercicio 3.1 
-    red modelCheck(initial, <> arePeopleParty -> [] (<> ~ arePeopleParty)) .
+    red modelCheck(initial, <> arePeopleParty -> [] <> ~ arePeopleParty) .
+
+    El model checker entra en un bucle, porque puede haber una transición 
+    de la regla "plazaMayorToParty" a la regla ""
     )
 
 ***( Ejercicio 3.2
-    red modelCheck(initial, <> (isDrunk ("Pepe") -> [] isDrunk ("Pepe"))) .
+    red modelCheck(initial, isDrunk ("Paco") -> [] isDrunk ("Paco")) .
     Devuelve True.
 )
 
 ***( Ejercicio 3.3
+    red modelCheck(initial, isAtTheParty ("Pepe") -> hasTicket ("Pepe")) .
+    Devuelve True.
+)
+
+***( Ejercicio 3.4
+    red modelCheck(initial, [] ~ ( hasTicket ("Pepe") /\ isAtTheArcade ("Pepe") )).
+    No se cumple porque puede comprar una entrada en plaza mayor y luego ir al arcade.
+
+    counterexample({home(person("Felipe",18,relax,undefined,10 | drinks(0,0),empty) person("Marta",15,relax,undefined,20 | drinks(0,0),
+    empty) person("Paco",33,relax,undefined,50 | drinks(0,0),empty) person("Pepe",22,relax,undefined,20 | drinks(0,0),empty)) arcade(empty) plazaMayor(
+    person("Billy",25,working,ticketSeller,0 | drinks(0,0),ticket(5) ticket(5) ticket(5)),empty) party(person("Bokencio",25,working,doorkeeper,2 | drinks(0,
+    0),empty),empty,empty,4),'homeToPlazaMayor} {home(person("Marta",15,relax,undefined,20 | drinks(0,0),empty) person("Paco",33,relax,undefined,50 | drinks(
+    0,0),empty) person("Pepe",22,relax,undefined,20 | drinks(0,0),empty)) arcade(empty) plazaMayor(person("Billy",25,working,ticketSeller,0 | drinks(0,0),
+    ticket(5) ticket(5) ticket(5)),person("Felipe",18,relax,undefined,10 | drinks(0,0),empty)) party(person("Bokencio",25,working,doorkeeper,2 | drinks(0,0),
+    empty),empty,empty,4),'homeToPlazaMayor} {home(person("Paco",33,relax,undefined,50 | drinks(0,0),empty) person("Pepe",22,relax,undefined,20 | drinks(0,
+    0),empty)) arcade(empty) plazaMayor(person("Billy",25,working,ticketSeller,0 | drinks(0,0),ticket(5) ticket(5) ticket(5)),person("Felipe",18,relax,
+    undefined,10 | drinks(0,0),empty) person("Marta",15,relax,undefined,20 | drinks(0,0),empty)) party(person("Bokencio",25,working,doorkeeper,2 | drinks(0,
+    0),empty),empty,empty,4),'homeToPlazaMayor} {home(person("Pepe",22,relax,undefined,20 | drinks(0,0),empty)) arcade(empty) plazaMayor(person("Billy",25,
+    working,ticketSeller,0 | drinks(0,0),ticket(5) ticket(5) ticket(5)),person("Felipe",18,relax,undefined,10 | drinks(0,0),empty) person("Marta",15,relax,
+    undefined,20 | drinks(0,0),empty) person("Paco",33,relax,undefined,50 | drinks(0,0),empty)) party(person("Bokencio",25,working,doorkeeper,2 | drinks(0,
+    0),empty),empty,empty,4),'homeToPlazaMayor} {home(empty) arcade(empty) plazaMayor(person("Billy",25,working,ticketSeller,0 | drinks(0,0),ticket(5)
+    ticket(5) ticket(5)),person("Felipe",18,relax,undefined,10 | drinks(0,0),empty) person("Marta",15,relax,undefined,20 | drinks(0,0),empty) person("Paco",
+    33,relax,undefined,50 | drinks(0,0),empty) person("Pepe",22,relax,undefined,20 | drinks(0,0),empty)) party(person("Bokencio",25,working,doorkeeper,2 |
+    drinks(0,0),empty),empty,empty,4),'plazaMayorToParty} {home(empty) arcade(empty) plazaMayor(person("Billy",25,working,ticketSeller,0 | drinks(0,0),
+    ticket(5) ticket(5) ticket(5)),person("Marta",15,relax,undefined,20 | drinks(0,0),empty) person("Paco",33,relax,undefined,50 | drinks(0,0),empty) person(
+    "Pepe",22,relax,undefined,20 | drinks(0,0),empty)) party(person("Bokencio",25,working,doorkeeper,2 | drinks(0,0),empty),person("Felipe",18,relax,
+    undefined,10 | drinks(0,0),empty),empty,4),'plazaMayorToParty} {home(empty) arcade(empty) plazaMayor(person("Billy",25,working,ticketSeller,0 | drinks(0,
+    0),ticket(5) ticket(5) ticket(5)),person("Paco",33,relax,undefined,50 | drinks(0,0),empty) person("Pepe",22,relax,undefined,20 | drinks(0,0),empty))
+    party(person("Bokencio",25,working,doorkeeper,2 | drinks(0,0),empty),person("Felipe",18,relax,undefined,10 | drinks(0,0),empty) person("Marta",15,relax,
+    undefined,20 | drinks(0,0),empty),empty,4),'plazaMayorToParty} {home(empty) arcade(empty) plazaMayor(person("Billy",25,working,ticketSeller,0 | drinks(0,
+    0),ticket(5) ticket(5) ticket(5)),person("Pepe",22,relax,undefined,20 | drinks(0,0),empty)) party(person("Bokencio",25,working,doorkeeper,2 | drinks(0,
+    0),empty),person("Felipe",18,relax,undefined,10 | drinks(0,0),empty) person("Marta",15,relax,undefined,20 | drinks(0,0),empty) person("Paco",33,relax,
+    undefined,50 | drinks(0,0),empty),empty,4),'sellTicket} {home(empty) arcade(empty) plazaMayor(person("Billy",25,working,ticketSeller,5 | drinks(0,0),
+    ticket(10) ticket(10) incrementPrice(empty,5)),person("Pepe",22,relax,undefined,15 | drinks(0,0),ticket(5))) party(person("Bokencio",25,working,
+    doorkeeper,2 | drinks(0,0),empty),person("Felipe",18,relax,undefined,10 | drinks(0,0),empty) person("Marta",15,relax,undefined,20 | drinks(0,0),empty)
+    person("Paco",33,relax,undefined,50 | drinks(0,0),empty),empty,4),'plazaMayorToArcade} {home(empty) arcade(person("Pepe",22,relax,undefined,15 | drinks(
+    0,0),ticket(5))) plazaMayor(person("Billy",25,working,ticketSeller,5 | drinks(0,0),ticket(10) ticket(10) incrementPrice(empty,5)),empty) party(person(
+    "Bokencio",25,working,doorkeeper,2 | drinks(0,0),empty),person("Felipe",18,relax,undefined,10 | drinks(0,0),empty) person("Marta",15,relax,undefined,20 |
+    drinks(0,0),empty) person("Paco",33,relax,undefined,50 | drinks(0,0),empty),empty,4),'bokencioBuysSoftDrink} {home(empty) arcade(person("Pepe",22,relax,
+    undefined,15 | drinks(0,0),ticket(5))) plazaMayor(person("Billy",25,working,ticketSeller,5 | drinks(0,0),ticket(10) ticket(10) incrementPrice(empty,5)),
+    empty) party(person("Bokencio",25,working,doorkeeper,1 | drinks(0,1),empty),person("Felipe",18,relax,undefined,10 | drinks(0,0),empty) person("Marta",15,
+    relax,undefined,20 | drinks(0,0),empty) person("Paco",33,relax,undefined,50 | drinks(0,0),empty),empty,4),'bokencioBuysSoftDrink}, {home(empty) arcade(
+    person("Pepe",22,relax,undefined,15 | drinks(0,0),ticket(5))) plazaMayor(person("Billy",25,working,ticketSeller,5 | drinks(0,0),ticket(10) ticket(10)
+    incrementPrice(empty,5)),empty) party(person("Bokencio",25,working,doorkeeper,0 | drinks(0,2),empty),person("Felipe",18,relax,undefined,10 | drinks(0,0),
+    empty) person("Marta",15,relax,undefined,20 | drinks(0,0),empty) person("Paco",33,relax,undefined,50 | drinks(0,0),empty),empty,4),deadlock})
 )
 
 
