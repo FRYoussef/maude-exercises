@@ -51,7 +51,7 @@ fmod PERSON is
     var P1 P2 : Person .
     var C : Crowd .
 
-    ops working relax tiredHappy drunk satisfied humiliated expeled : -> PState [ctor] .
+    ops working relax tiredHappy drunk satisfied humiliated : -> PState [ctor] .
     ops ticketSeller doorkeeper undefined : -> Job [ctor] .
 
     *** Person( Name, Age, PState, Job, Money | Drinks, Tickets )
@@ -171,16 +171,14 @@ mod SYS is
 
 
     *** a person goes from Plaza Mayor to party
-    crl [plazaMayorToParty] : 
+    rl [plazaMayorToParty] : 
         plazaMayor(P1, person(N2, Age2, PSt2, undefined, Money2 | Drinks2, 
          Tickets2) C1) 
         party(P2, C3, C2, MaxP)
 
      => plazaMayor(P1, C1) 
         party(P2, person(N2, Age2, PSt2, undefined, Money2 | Drinks2, 
-         Tickets2) C3, C2, MaxP) 
-         
-     if not (PSt2 == expeled) .
+         Tickets2) C3, C2, MaxP) .
 
 
     *** a person goes from Plaza Mayor to arcade
@@ -206,14 +204,17 @@ mod SYS is
 
 
     *** This rule takes two persons in order to play. The first one is always the winner
-    rl [play] :
+    crl [play] :
         arcade(
             person(N1, Age1, PSt1, undefined, Money1 | Drinks1, Tickets1)
             person(N2, Age2, PSt2, undefined, Money2 | Drinks2, Tickets2) C1)
     
      => arcade(
             person(N1, Age1, satisfied, undefined, Money1 | Drinks1, Tickets1)
-            person(N2, Age2, humiliated, undefined, Money2 | Drinks2, Tickets2) C1) .
+            person(N2, Age2, humiliated, undefined, Money2 | Drinks2, Tickets2) C1)
+            
+     if not (PSt1 == satisfied or PSt1 == humiliated) and 
+        not (PSt2 == satisfied or PSt2 == humiliated) .
 
 
     *** When billy sells a ticket, the remaining will increase its value in 5 currencies 
@@ -242,18 +243,6 @@ mod SYS is
         person(N1, Age1, PSt1, undefined, Money1 | Drinks1, ticket(Price)) := P1 /\
         Age1 >= 18 /\
         numPeople(C2) < MaxP .
-
-
-    *** A person can't enter the party, so he goes back to Plaza Mayor
-    crl [cantEnterTheParty] : 
-        party(P1, person(N1, Age1, PSt1, undefined, Money1 | Drinks1, Tickets1) 
-         C1, C2, MaxP)
-        plazaMayor(P2, C3)
-
-     => party(P1, C1, C2, MaxP) 
-        plazaMayor(P2, person(N1, Age1, expeled, undefined, Money1 | Drinks1, Tickets1) C3)
-
-     if Age1 < 18 or numPeople(C2) >= MaxP or Tickets1 == empty .
 
 
     *** People can buy an alcohol drink, which cost is 2 currencies
@@ -300,7 +289,7 @@ mod SYS is
          person(N1, Age1, drunk, undefined, Money1 | 
           drinks(Alcohol, SoftDrink), Tickets1) C2, MaxP)
 
-     if Alcohol >= 4 .
+     if Alcohol >= 4 and not (PSt1 == drunk) .
 
 
     *** Bokencio expels people who're drunk
@@ -313,17 +302,17 @@ mod SYS is
         home(person(N1, Age1, drunk, undefined, Money1 | Drinks1, Tickets1) C3) .
 
 
-    *** A person goes back to home
+    *** A person goes back from party to home
     crl [partyToHome] :
         party(P1, C1, person(N1, Age1, PSt1, undefined, Money1 | 
-         drinks(Alcohol, SoftDrink), Tickets1) C2, MaxP)
+         Drinks1, Tickets1) C2, MaxP)
         home(C3)
 
      => party(P1, C1, C2, MaxP)
         home(person(N1, Age1, tiredHappy, undefined, Money1 | 
-         drinks(Alcohol, SoftDrink), Tickets1) C3)
+         Drinks1, Tickets1) C3)
      
-     if Alcohol < 4 .
+     if not (PSt1 == drunk) .
 
 
     op initial : -> Sys .
@@ -362,18 +351,15 @@ mod PROPS is
     vars Name N1 : String .
     var S : Sys .
 
+    *** There are people at the party
     op arePeopleParty : -> Prop [ctor] .
     ceq party(P1, C1, C2, MaxP) S |= arePeopleParty 
      = true
-     if not (C1 == empty and C2 == empty) .
+     if not (C2 == empty) .
 
 
     *** A specific person could be at the party, or waiting for the party.
     op isAtTheParty : String -> Prop [ctor] .
-    eq party(P1, person(Name, Age1, PSt1, Job1, Money1 | Drinks1, Tickets1)
-     C1, C2, MaxP) S
-     |= isAtTheParty (Name) = true .
-
     eq party(P1, C1, person(Name, Age1, PSt1, Job1, Money1 | Drinks1, Tickets1) 
      C2, MaxP) S
      |= isAtTheParty (Name) = true .
@@ -456,8 +442,7 @@ mod CHECK is
     pr LTL-SIMPLIFIER .
 
 ***( Ejercicio 3.1 
-    red modelCheck(initial, <> (~ arePeopleParty -> [] ~ arePeopleParty)) .
-    Devuelve True.
+    red modelCheck(initial, <> arePeopleParty -> [] (<> ~ arePeopleParty)) .
     )
 
 ***( Ejercicio 3.2
