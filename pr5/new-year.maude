@@ -247,7 +247,7 @@ mod SYS is
 
     
     *** A person is expeled to plaza mayor
-    crl [cantEnterTheParty] : 
+    crl [expeledToPlazaMayor] : 
         party(P1, P2 C1, C2, MaxP)
         plazaMayor(P3, C3)
 
@@ -457,8 +457,9 @@ mod CHECK is
 ***( Ejercicio 3.1 
     red modelCheck(initial, <> arePeopleParty -> [] <> ~ arePeopleParty) .
 
-    El model checker entra en un bucle, porque puede haber una transición 
-    de la regla "plazaMayorToParty" a la regla ""
+    El model checker entra en un bucle, ya que puede haber una transición 
+    de la regla "plazaMayorToParty" a la regla "expeledToPlazaMayor"
+    y viceversa indefinidamente. En nuestro caso pasa con Marta
     )
 
 ***( Ejercicio 3.2
