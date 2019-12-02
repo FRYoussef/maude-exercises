@@ -366,9 +366,7 @@ mod PROPS is
 
     *** There are people at the party
     op arePeopleParty : -> Prop [ctor] .
-    ceq party(P1, C1, C2, MaxP) S |= arePeopleParty 
-     = true
-     if not (C2 == empty) .
+    eq party(P1, C1, empty, MaxP) S |= arePeopleParty = false .
 
 
     *** A specific person could be at the party, or waiting for the party.
@@ -455,21 +453,25 @@ mod CHECK is
     pr LTL-SIMPLIFIER .
 
 ***( Ejercicio 3.1 
-    red modelCheck(initial, <> arePeopleParty -> [] <> ~ arePeopleParty) .
+    red modelCheck(initial, [] <> ~ arePeopleParty) .
 
     El model checker entra en un bucle, ya que puede haber una transición 
     de la regla "plazaMayorToParty" a la regla "expeledToPlazaMayor"
-    y viceversa indefinidamente. En nuestro caso pasa con Marta
+    y viceversa indefinidamente. En nuestro caso pasa con Marta que no 
+    llega a entrar nunca en la fiesta.
     )
 
 ***( Ejercicio 3.2
     red modelCheck(initial, isDrunk ("Paco") -> [] isDrunk ("Paco")) .
-    Devuelve True.
+
+    Devuelve True, porque si está embrio se le manda a casa directamente
+    y no puede volver a salir.
 )
 
 ***( Ejercicio 3.3
     red modelCheck(initial, isAtTheParty ("Pepe") -> hasTicket ("Pepe")) .
-    Devuelve True.
+
+    Devuelve True, porque si esta en la fiesta tenía que tener entrada.
 )
 
 ***( Ejercicio 3.4
@@ -515,5 +517,42 @@ mod CHECK is
     empty) person("Marta",15,relax,undefined,20 | drinks(0,0),empty) person("Paco",33,relax,undefined,50 | drinks(0,0),empty),empty,4),deadlock})
 )
 
-
 endm
+
+***(
+    Para poder transformar reglas en ecuaciones para limitar el numero de 
+    estados, estas deben cumplir las siguientes reglas:
+
+        * Las nuevas ecuaciones deben ser terminantes (no bucles).
+        * Deben ser deterministas.
+        * Deben ser indivisibles (no afectar a las propiedades).
+
+    A continuación, nombro las reglas que no se pueden transformar, con lo cual,
+    las que no esten en este grupo si lo van a poder hacer.
+
+        * No son deterministas las siguientes reglas:
+            - homeToPlazaMayor
+            - homeToParty
+            - homeToArcade
+            - plazaMayorToParty
+            - plazaMayorToArcade
+            - personBuysAlcohol
+            - personBuysSoftDrink
+            - partyToHome
+
+        * No son indivisibles las siguientes reglas:
+            - arcadeToHome
+            - sellTicket
+            - enterTheParty
+            - personBecomesDrunk
+            - bokencioExpelsDrunks
+            - partyToHome
+
+        * Tienen bucles las siguientes reglas:
+            - plazaMayorToParty
+            - expeledToPlazaMayor
+
+    Las que se pueden transformar en equaciones son:
+        - play
+        - bokencioBuysSoftDrink
+)
