@@ -457,8 +457,9 @@ mod CHECK is
 
     El model checker entra en un bucle, ya que puede haber una transición 
     de la regla "plazaMayorToParty" a la regla "expeledToPlazaMayor"
-    y viceversa indefinidamente. En nuestro caso pasa con Marta que no 
-    llega a entrar nunca en la fiesta.
+    y viceversa indefinidamente. 
+    En nuestro caso pasa con Marta que no llega a entrar nunca en la fiesta,
+    se podría arreglar marcando a los expulsados, para romper el bucle.
     )
 
 ***( Ejercicio 3.2
@@ -552,7 +553,22 @@ endm
             - plazaMayorToParty
             - expeledToPlazaMayor
 
-    Las que se pueden transformar en equaciones son:
+
+    Entonces se pueden transformar en equaciones:
         - play
         - bokencioBuysSoftDrink
+
+    La justificación es la misma para ambas propiedades:
+
+        * Solo tenemos una regla aplicable para el estado de entrada,
+          es decir, hay determinismo.
+
+        * No hay otra regla que tenga como entrada el estado de salida
+          de la regla anterior, y que produzca un estado de salida que
+          sea entrada de esta regla, es decir, no hay bucles que 
+          involucren a la regla.
+
+        * No cambia el valor de las propiedades, es decir, el resultado
+          de la propiedad será el mismo antes y despues de aplicar la 
+          regla. 
 )
